@@ -62,7 +62,7 @@ stm32f0.hex: $(EXECUTABLES)
 
 # Other Targets
 clean:
-	-$(RM)  *.hex *.elf *.map Src/*.o Src/*.d Src/*.su ./Drivers/STM32F0xx_HAL_Driver/Src/*.o ./Drivers/STM32F0xx_HAL_Driver/Src/*.d ./Drivers/STM32F0xx_HAL_Driver/Src/*.su ./Startup/*.o
+	-$(RM)  *.hex *.elf *.map ./*/*.o ./*/*.d ./*/*.su ./*/*/*/*.o ./*/*/*/*.d ./*/*/*/*.su 
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
