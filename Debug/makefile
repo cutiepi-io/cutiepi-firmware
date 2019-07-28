@@ -40,8 +40,8 @@ stm32f0.hex \
 all: stm32f0.elf secondary-outputs
 
 # Tool invocations
-stm32f0.elf: $(OBJS) $(USER_OBJS) /home/clj/prj/cutepistm32/STM32F030F4PX_FLASH.ld
-	arm-none-eabi-gcc -o "stm32f0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"/home/clj/prj/cutepistm32/STM32F030F4PX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32f0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm32f0.elf: $(OBJS) $(USER_OBJS) ../STM32F030F4PX_FLASH.ld
+	arm-none-eabi-gcc -o "stm32f0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"../STM32F030F4PX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32f0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
