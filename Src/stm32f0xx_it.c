@@ -35,6 +35,9 @@
 /* USER CODE BEGIN PD */
 #define TRUE  1
 #define FALSE 0
+
+#define FLAG_1OMS      0x01
+#define FLAG_1000MS    0x02
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -44,9 +47,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-uint32_t u32KeyTimerCnt = 0;
-uint32_t adc_result_period = 0;
-extern uint8_t u8KeyTimerStartFlg;
+uint32_t flag_time = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,15 +130,21 @@ void PendSV_Handler(void)
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-	if(u8KeyTimerStartFlg)
+	static uint8_t flag_10ms = 10; //1ms*10
+	static uint8_t flag_1000ms = 100;  //100*10ms
+
+	flag_10ms--;
+	if(flag_10ms == 0)
 	{
-		u32KeyTimerCnt++;
+		flag_10ms = 10;
+		flag_1000ms--;
+		flag_time |= FLAG_1OMS;
+		if(flag_1000ms == 0)
+		{
+			flag_1000ms = 100;
+			flag_time |= FLAG_1000MS;
+		}
 	}
-	else
-	{
-		//u32KeyTimerCnt = 0;
-	}
-	adc_result_period ++;
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */
@@ -194,6 +201,19 @@ void USART1_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void time_proc(void)
+{
+	if(flag_time & FLAG_1OMS)
+	{
+		flag_time &= ~FLAG_1OMS;
+		time_10ms_proc();
+	}
 
+	if(flag_time & FLAG_1000MS)
+	{
+		flag_time &= ~FLAG_1000MS;
+		time_1000ms_proc();
+	}
+}
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

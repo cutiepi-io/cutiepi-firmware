@@ -56,7 +56,9 @@ void RCC_IRQHandler(void);
 void ADC1_IRQHandler(void);
 void USART1_IRQHandler(void);
 /* USER CODE BEGIN EFP */
-
+void time_10ms_proc(void);
+void time_1000ms_proc(void);
+void time_proc(void);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

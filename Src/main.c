@@ -26,6 +26,7 @@
 #include "usart.h"
 #include "adc.h"
 #include "crc.h"
+#include "stm32f0xx_it.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -35,9 +36,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SHORT_PRESS_DURATION	1000
-#define MIDDLE_PRESS_DURATION	4000
-#define LONG_PRESS_DURATION		6000
+#define SHORT_PRESS_DURATION	1000/10
+#define MIDDLE_PRESS_DURATION	4000/10
+#define LONG_PRESS_DURATION		6000/10
 #define BATT_VOL_SEND_PERIOD    1000 //ms
 #define POWKEY_ACTIVE 	    0
 #define POWKEY_DEACTIVE 	1
@@ -51,6 +52,10 @@
 /* USER CODE BEGIN PM */
 #define TRUE  1
 #define FALSE 0
+#define KEY_FIRST_ON        0x01
+#define KEY_DEBOUNCE_START  0x02
+#define KEY_DEBOUNCE_END    0x04
+#define KEY_RELEASED        0x08
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -61,13 +66,12 @@ CRC_HandleTypeDef hcrc;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-uint8_t u8KeyTimerStartFlg = 0;
-uint8_t u8buttonDetectInhibit = FALSE;
+uint8_t flag_key = 0;
 static uint8_t current_powerState = OFF;
 static uint8_t Uart_TxData[10] = {0};
 static uint8_t Uart_RxData[10] = {0};
-extern uint32_t u32KeyTimerCnt;
-extern uint32_t adc_result_period;
+uint32_t u32KeyTimerCnt;
+extern uint32_t flag_time;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -99,12 +103,148 @@ void Set_CurrentPowState(uint32_t state)
 
 void BatteryVol_Check_And_Send(void)
 {
-	if(adc_result_period >= BATT_VOL_SEND_PERIOD && Get_CurrentPowState() != OFF)
+	if(Get_CurrentPowState() != OFF)
 	{
-		adc_result_period = 0;
 		HAL_ADC_Start_IT(&hadc);
 	}
 }
+
+void scan_key(void)
+{
+	static uint8_t debounce_time = 1; //10ms
+
+	  if((flag_key & KEY_FIRST_ON) == FALSE)
+	  {
+		  if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
+		  {
+			  flag_key |= KEY_FIRST_ON;
+			  flag_key |= KEY_DEBOUNCE_START;
+		  }
+	  }
+	  else if(flag_key & KEY_DEBOUNCE_START)
+	  {
+		  debounce_time--;
+		  if(debounce_time == 0)
+		  {
+			  debounce_time = 1;
+			  flag_key &= ~KEY_DEBOUNCE_START;
+			  flag_key |= KEY_DEBOUNCE_END;
+		  }
+	  }
+	  else if(flag_key & KEY_DEBOUNCE_END)
+	  {
+
+		  if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
+		  {
+			  u32KeyTimerCnt++;
+		  }
+		  else
+		  {
+			  flag_key &= ~KEY_DEBOUNCE_END;
+			  flag_key |= KEY_RELEASED;
+		  }
+
+	  }
+	  else
+	  {
+
+	  }
+
+	if((flag_key & KEY_RELEASED) != 0)
+	{
+		  if(0 < u32KeyTimerCnt && u32KeyTimerCnt <= SHORT_PRESS_DURATION
+				  && ON == current_powerState)
+		  {
+			  flag_key = 0;
+			  u32KeyTimerCnt = 0;
+			  Uart_TxData[2] = 1;
+			  Uart_TxData[3] = 0;
+			  Uart_TxData[4] = SHORT_PRESS;
+			  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
+			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
+			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
+		  }
+		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
+		  {
+			  u32KeyTimerCnt = 0;
+			  flag_key = 0;
+	//			  if(/*LL_GPIO_IsOutputPinSet(BOOST_EN_GPIO_Port,BOOST_EN_Pin) &&*/
+	//				 LL_GPIO_IsOutputPinSet(CHARGE_EN_GPIO_Port,CHARGE_EN_Pin) &&
+	//				 LL_GPIO_IsOutputPinSet(IN2SYS_EN_GPIO_Port,IN2SYS_EN_Pin))
+			  if(ON == current_powerState)
+			  {
+				  Uart_TxData[2] = 1;
+				  Uart_TxData[3] = 0;
+				  Uart_TxData[4] = MIDDLE_PRESS;
+				  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
+				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
+				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
+				  Set_CurrentPowState(WAITING_OFF);
+			  }
+			  else
+			  {
+				  /**/
+				  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+				  /**/
+				  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+				  /**/
+				  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+
+				  Set_CurrentPowState(ON);
+			  }
+		  }
+		  else
+		  {
+			  u32KeyTimerCnt = 0;
+			  flag_key = 0;
+		  }
+	 }
+	  if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
+	  {
+		  /**/
+		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+		  /**/
+		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+		  /**/
+		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+
+		  Set_CurrentPowState(OFF);
+
+		  u32KeyTimerCnt = 0;
+		  flag_key = 0;
+
+	  }
+}
+
+void time_10ms_proc(void)
+{
+	scan_key();
+	  /*After pi excute power off sequence, it sends out ready off state to mcu,which will set
+	   *  current_powerState to READY_OFF*/
+	  if(current_powerState == READY_OFF)
+	  {
+		  /**/
+		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+		  /**/
+		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+		  /**/
+		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+
+		  Set_CurrentPowState(OFF);
+	  }
+}
+
+void time_1000ms_proc(void)
+{
+	  BatteryVol_Check_And_Send();
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -158,105 +298,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
-	  {
-	   LL_mDelay(10); /*debounce time, 10ms*/
-	   if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin) && !u8buttonDetectInhibit)
-	   {
-		   u8KeyTimerStartFlg = TRUE;
-	   }
-	   else
-	   {
-		   u8KeyTimerStartFlg = FALSE;
-	   }
-	  }
+	  time_proc();
 
-
-	  if(!u8KeyTimerStartFlg)
-	  {
-		  if(0 < u32KeyTimerCnt && u32KeyTimerCnt <= SHORT_PRESS_DURATION
-				  && ON == current_powerState)
-		  {
-			  u32KeyTimerCnt = 0;
-			  Uart_TxData[2] = 1;
-			  Uart_TxData[3] = 0;
-			  Uart_TxData[4] = SHORT_PRESS;
-			  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
-			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
-			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
-		  }
-		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
-		  {
-			  u32KeyTimerCnt = 0;
-//			  if(/*LL_GPIO_IsOutputPinSet(BOOST_EN_GPIO_Port,BOOST_EN_Pin) &&*/
-//				 LL_GPIO_IsOutputPinSet(CHARGE_EN_GPIO_Port,CHARGE_EN_Pin) &&
-//				 LL_GPIO_IsOutputPinSet(IN2SYS_EN_GPIO_Port,IN2SYS_EN_Pin))
-			  if(ON == current_powerState)
-			  {
-				  Uart_TxData[2] = 1;
-				  Uart_TxData[3] = 0;
-				  Uart_TxData[4] = MIDDLE_PRESS;
-				  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
-				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
-				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
-				  Set_CurrentPowState(WAITING_OFF);
-			  }
-			  else
-			  {
-				  /**/
-				  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-				  /**/
-				  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-				  /**/
-				  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-				  Set_CurrentPowState(ON);
-			  }
-		  }
-		  else
-		  {
-			  u32KeyTimerCnt = 0;
-		  }
-
-	  }
-
-	  /*After pi excute power off sequence, it sends out ready off state to mcu,which will set
-	   *  current_powerState to READY_OFF*/
-	  if(current_powerState == READY_OFF)
-	  {
-		  /**/
-		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-		  Set_CurrentPowState(OFF);
-	  }
-
-	  if(u32KeyTimerCnt >= LONG_PRESS_DURATION && ON == current_powerState)
-	  {
-		  /**/
-		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-		  Set_CurrentPowState(OFF);
-
-		  u32KeyTimerCnt = 0;
-		  u8KeyTimerStartFlg = FALSE; //reset button event
-
-	  }
-
-	  BatteryVol_Check_And_Send();
 	  LL_mDelay(1);
     /* USER CODE END WHILE */
 
