@@ -2,7 +2,7 @@
 
 ## Dependency 
 
-    sudo apt install binutils-arm-none-eabi stlink-tools
+    sudo apt install gcc-arm-none-eabi stlink-tools
 
 ## Flash 
 
