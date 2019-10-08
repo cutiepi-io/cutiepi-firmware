@@ -29,9 +29,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		tx_data[3] = 0;
 		tx_data[4] = (uint8_t)(batt_vol&0xFF);
 		tx_data[5] = (uint8_t)((batt_vol >> 8) &0xFF);
-		//tx_data[6] = (uint8_t)((batt_vol >> 16) &0xFF);
-		//tx_data[7] = (uint8_t)((batt_vol >> 24) &0xFF);
-		tx_data[6] = crc8_calculate(tx_data, MIN_IPC_MSG_LEN + 2);
+		tx_data[6] = crc8_calculate(tx_data, MIN_IPC_MSG_LEN + 1);
 		HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, MIN_IPC_MSG_LEN + 2);
 	}
 
