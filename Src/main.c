@@ -157,12 +157,13 @@ void scan_key(void)
 		  {
 			  flag_key = 0;
 			  u32KeyTimerCnt = 0;
-			  Uart_TxData[2] = 1;
-			  Uart_TxData[3] = 0;
-			  Uart_TxData[4] = SHORT_PRESS;
-			  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN);
-			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
-			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
+			  Uart_TxData[2] = 1; //key msg
+			  Uart_TxData[3] = 1;
+			  Uart_TxData[4] = 0; //length
+			  Uart_TxData[5] = SHORT_PRESS;
+			  Uart_TxData[6] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
+			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1 + 1);
+			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1 + 1);
 		  }
 		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
 		  {
@@ -174,11 +175,12 @@ void scan_key(void)
 			  if(ON == current_powerState)
 			  {
 				  Uart_TxData[2] = 1;
-				  Uart_TxData[3] = 0;
-				  Uart_TxData[4] = MIDDLE_PRESS;
-				  Uart_TxData[5] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN);
-				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1);
-				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1);
+				  Uart_TxData[3] = 1;
+			    Uart_TxData[4] = 0; //length
+				  Uart_TxData[5] = MIDDLE_PRESS;
+				  Uart_TxData[6] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
+				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1 + 1);
+				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1 + 1);
 				  Set_CurrentPowState(WAITING_OFF);
 			  }
 			  else
