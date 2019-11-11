@@ -15,7 +15,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 	uint32_t Adc_val = 0;
 	uint32_t ResultVoltage = 0;
 	uint32_t batt_vol = 0;
-	uint8_t tx_data[10] = {0};
+	uint8_t tx_data[6] = {0};
 
 	if( __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOS))
 	{
@@ -26,12 +26,10 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		tx_data[0] = 0x5a;
 		tx_data[1] = 0xa5;
 		tx_data[2] = 2; //battery msg
-		tx_data[3] = 2;
-		tx_data[4] = 0;
-		tx_data[5] = (uint8_t)(batt_vol&0xFF);
-		tx_data[6] = (uint8_t)((batt_vol >> 8) &0xFF);
-		tx_data[7] = crc8_calculate(tx_data, MIN_IPC_MSG_LEN + 2);
-		HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, MIN_IPC_MSG_LEN + 2 + 1);
+		tx_data[3] = (uint8_t)((batt_vol >> 8) &0xFF); // data_msb
+		tx_data[4] = (uint8_t)(batt_vol & 0xFF); // data_lsb
+		tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
+		HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
 	}
 
 	return;

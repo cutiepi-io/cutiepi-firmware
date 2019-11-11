@@ -68,7 +68,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 uint8_t flag_key = 0;
 static uint8_t current_powerState = OFF;
-static uint8_t Uart_TxData[10] = {0};
+static uint8_t Uart_TxData[6] = {0};
 static uint8_t Uart_RxData[10] = {0};
 uint32_t u32KeyTimerCnt;
 extern uint32_t flag_time;
@@ -158,12 +158,11 @@ void scan_key(void)
 			  flag_key = 0;
 			  u32KeyTimerCnt = 0;
 			  Uart_TxData[2] = 1; //key msg
-			  Uart_TxData[3] = 1;
-			  Uart_TxData[4] = 0; //length
-			  Uart_TxData[5] = SHORT_PRESS;
-			  Uart_TxData[6] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
-			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1 + 1);
-			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1 + 1);
+        Uart_TxData[3] = 0; // data_msb
+			  Uart_TxData[4] = SHORT_PRESS; // data_lsb
+			  Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
+			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
+			  HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
 		  }
 		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
 		  {
@@ -174,13 +173,12 @@ void scan_key(void)
 	//				 LL_GPIO_IsOutputPinSet(IN2SYS_EN_GPIO_Port,IN2SYS_EN_Pin))
 			  if(ON == current_powerState)
 			  {
-				  Uart_TxData[2] = 1;
-				  Uart_TxData[3] = 1;
-			    Uart_TxData[4] = 0; //length
-				  Uart_TxData[5] = MIDDLE_PRESS;
-				  Uart_TxData[6] = crc8_calculate(Uart_TxData, MIN_IPC_MSG_LEN + 1);
-				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + 1 + 1);
-				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + 1 + 1);
+				  Uart_TxData[2] = 1; //key msg
+				  Uart_TxData[3] = 0; // data_msb
+				  Uart_TxData[4] = MIDDLE_PRESS; // data_lsb
+				  Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
+				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
+				  HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
 				  Set_CurrentPowState(WAITING_OFF);
 			  }
 			  else

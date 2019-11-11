@@ -9,6 +9,7 @@
 #define USART_H_
 
 #define PAYLOAD_POS   0x4u
+#define UART_MSG_LENGTH   0x06
 
 #define IPC_HEADER   0xa55a
 #define	SHORT_PRESS    0x01
