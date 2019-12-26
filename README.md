@@ -13,7 +13,7 @@
 | SWCLK             |  DCLK (9)          |
 | GND               |  GND (20)          |
 
-![](https://i.imgur.com/ffjmhF8.jpg)
+![](https://i.imgur.com/Nxv41OE.jpg)
 
     st-flash --format ihex write ./stm32f0.hex 
 
