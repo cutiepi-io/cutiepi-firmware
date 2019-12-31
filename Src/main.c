@@ -61,8 +61,6 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc;
 
-CRC_HandleTypeDef hcrc;
-
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -79,7 +77,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -101,13 +98,7 @@ void Set_CurrentPowState(uint32_t state)
 	 current_powerState = state;
 }
 
-void BatteryVol_Check_And_Send(void)
-{
-	if(Get_CurrentPowState() != OFF)
-	{
-		HAL_ADC_Start_IT(&hadc);
-	}
-}
+
 
 void scan_key(void)
 {
@@ -242,7 +233,7 @@ void time_10ms_proc(void)
 
 void time_1000ms_proc(void)
 {
-	  BatteryVol_Check_And_Send();
+	ADC_Check_And_Send();
 }
 
 /* USER CODE END 0 */
@@ -279,7 +270,6 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_USART1_UART_Init();
-  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   /**/
   LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
@@ -379,7 +369,7 @@ static void MX_ADC_Init(void)
   hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc.Init.LowPowerAutoWait = ENABLE;
   hadc.Init.LowPowerAutoPowerOff = ENABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.ContinuousConvMode = ENABLE;
   hadc.Init.DiscontinuousConvMode = DISABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -391,9 +381,16 @@ static void MX_ADC_Init(void)
   }
   /** Configure for the selected ADC regular channel to be converted. 
   */
-  sConfig.Channel = ADC_CHANNEL_9;
+  sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
   sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure for the selected ADC regular channel to be converted. 
+  */
+  sConfig.Channel = ADC_CHANNEL_9;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -402,37 +399,6 @@ static void MX_ADC_Init(void)
   //LL_ADC_Enable(ADC1);
   //while(!LL_ADC_IsActiveFlag_ADRDY(ADC1)); //wait for ready
   /* USER CODE END ADC_Init 2 */
-
-}
-
-/**
-  * @brief CRC Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CRC_Init(void)
-{
-
-  /* USER CODE BEGIN CRC_Init 0 */
-
-  /* USER CODE END CRC_Init 0 */
-
-  /* USER CODE BEGIN CRC_Init 1 */
-
-  /* USER CODE END CRC_Init 1 */
-  hcrc.Instance = CRC;
-  hcrc.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_ENABLE;
-  hcrc.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
-  hcrc.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
-  hcrc.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
-  hcrc.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
-  if (HAL_CRC_Init(&hcrc) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CRC_Init 2 */
-
-  /* USER CODE END CRC_Init 2 */
 
 }
 
@@ -493,9 +459,6 @@ static void MX_GPIO_Init(void)
   LL_GPIO_ResetOutputPin(MCU_REV2_GPIO_Port, MCU_REV2_Pin);
 
   /**/
-  LL_GPIO_ResetOutputPin(MCU_REV3_GPIO_Port, MCU_REV3_Pin);
-
-  /**/
   LL_GPIO_ResetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
 
   /**/
@@ -522,14 +485,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(MCU_REV2_GPIO_Port, &GPIO_InitStruct);
-
-  /**/
-  GPIO_InitStruct.Pin = MCU_REV3_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(MCU_REV3_GPIO_Port, &GPIO_InitStruct);
 
   /**/
   GPIO_InitStruct.Pin = MCU_IND_Pin;

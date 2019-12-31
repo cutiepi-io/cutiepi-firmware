@@ -64,6 +64,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void Set_CurrentPowState(uint32_t state);
+uint8_t Get_CurrentPowState(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -71,8 +72,8 @@ void Set_CurrentPowState(uint32_t state);
 #define MCU_REV1_GPIO_Port GPIOA
 #define MCU_REV2_Pin LL_GPIO_PIN_1
 #define MCU_REV2_GPIO_Port GPIOA
-#define MCU_REV3_Pin LL_GPIO_PIN_2
-#define MCU_REV3_GPIO_Port GPIOA
+#define USB5V_AD_Pin LL_GPIO_PIN_2
+#define USB5V_AD_GPIO_Port GPIOA
 #define MCU_IND_Pin LL_GPIO_PIN_3
 #define MCU_IND_GPIO_Port GPIOA
 #define switch_input_Pin LL_GPIO_PIN_4
@@ -83,6 +84,8 @@ void Set_CurrentPowState(uint32_t state);
 #define CHARGE_EN_GPIO_Port GPIOA
 #define IN2SYS_EN_Pin LL_GPIO_PIN_7
 #define IN2SYS_EN_GPIO_Port GPIOA
+#define VBAT_AD_Pin LL_GPIO_PIN_1
+#define VBAT_AD_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
