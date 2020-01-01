@@ -233,7 +233,10 @@ void time_10ms_proc(void)
 
 void time_1000ms_proc(void)
 {
-	ADC_Check_And_Send();
+	uint8_t current_pow_sts;
+
+	current_pow_sts = Get_CurrentPowState();
+	ADC_Check_And_Send(current_pow_sts);
 }
 
 /* USER CODE END 0 */

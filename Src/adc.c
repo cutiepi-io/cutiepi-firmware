@@ -15,7 +15,7 @@
 extern UART_HandleTypeDef huart1;
 extern ADC_HandleTypeDef hadc;
 
-void ADC_Check_And_Send(void)
+void ADC_Check_And_Send(uint32_t powersts)
 {
 	uint32_t batt_adc = 0;
 	uint32_t usb_char_adc = 0;
@@ -27,7 +27,7 @@ void ADC_Check_And_Send(void)
 	tx_data[1] = 0xa5;
 	tx_data[2] = 2; // msg length
 
-	if(Get_CurrentPowState() != OFF)
+	if(powersts != OFF)
 	{
 		//HAL_ADC_Start_IT(&hadc);
 		HAL_ADC_Start(&hadc);
@@ -39,7 +39,7 @@ void ADC_Check_And_Send(void)
 			tx_data[4] = IS_CHARGING; // data_lsb
 			tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
 			HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
-			LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+			//LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 		}
 		else
 		{
@@ -47,7 +47,7 @@ void ADC_Check_And_Send(void)
 			tx_data[4] = IS_NOT_CHARGING; // data_lsb
 			tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
 			HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
-			LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+			//LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 		}
 
 		HAL_ADC_PollForConversion(&hadc, 10);
@@ -63,25 +63,25 @@ void ADC_Check_And_Send(void)
 	}
 	else
 	{
-//		HAL_ADC_Start(&hadc);
-//		HAL_ADC_PollForConversion(&hadc, 10);
-//		usb_char_adc = HAL_ADC_GetValue(&hadc);
-//		if(USB_CHARGE_THRESHOLD_VAL <= usb_char_adc)
-//		{ /*power CM when charging at off mode*/
-//		  /**/
-//		  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-//
-//		  /**/
-//		  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-//
-//		  /**/
-//		  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-//		  Set_CurrentPowState(ON);
-//		}
-//		HAL_ADC_PollForConversion(&hadc, 10);
-//		batt_adc = HAL_ADC_GetValue(&hadc);
-//
-//		HAL_ADC_Stop(&hadc);
+		HAL_ADC_Start(&hadc);
+		HAL_ADC_PollForConversion(&hadc, 10);
+		usb_char_adc = HAL_ADC_GetValue(&hadc);
+		if(USB_CHARGE_THRESHOLD_VAL <= usb_char_adc)
+		{ /*power CM when charging at off mode*/
+		  /**/
+		  //LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+		  /**/
+		  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+		  /**/
+		  //LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+		  //Set_CurrentPowState(ON);
+		}
+		HAL_ADC_PollForConversion(&hadc, 10);
+		batt_adc = HAL_ADC_GetValue(&hadc);
+
+		HAL_ADC_Stop(&hadc);
 
 	}
 }

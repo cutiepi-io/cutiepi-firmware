@@ -8,6 +8,6 @@
 #ifndef ADC_H_
 #define ADC_H_
 
-void ADC_Check_And_Send(void);
+void ADC_Check_And_Send(uint32_t powersts);
 
 #endif /* ADC_H_ */
