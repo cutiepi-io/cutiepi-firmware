@@ -8,16 +8,16 @@
 
 | CutiePi board J7  | ST-LINK/V2 Pinout  |
 | ----------------- | ------------------ |
-| 3V3               |  TVCC (2)          |
-| SWDIO             |  DIO (7)           |
-| SWCLK             |  DCLK (9)          |
-| GND               |  GND (20)          |
+| 3V3               |  TVCC              |
+| SWDIO             |  DIO               |
+| SWCLK             |  DCLK              |
+| GND               |  GND               |
 
-![](https://i.imgur.com/Nxv41OE.jpg)
+![](https://i.imgur.com/JhyHX9E.jpg)
 
     st-flash --format ihex write ./stm32f0.hex 
 
-![](https://i.imgur.com/d8V54W6.png)
+![](https://i.imgur.com/7rgrJp4.png)
 
 ## Compile 
 
