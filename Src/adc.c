@@ -39,6 +39,10 @@ void ADC_Check_And_Send(uint32_t powersts)
 			tx_data[4] = IS_CHARGING; // data_lsb
 			tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
 			HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
+			while(huart1.gState != HAL_UART_STATE_READY)
+			{
+				;
+			}
 			//LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 		}
 		else
@@ -47,6 +51,10 @@ void ADC_Check_And_Send(uint32_t powersts)
 			tx_data[4] = IS_NOT_CHARGING; // data_lsb
 			tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
 			HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
+			while(huart1.gState != HAL_UART_STATE_READY)
+			{
+				;
+			}
 			//LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 		}
 
@@ -58,6 +66,10 @@ void ADC_Check_And_Send(uint32_t powersts)
 		tx_data[4] = (uint8_t)(batt_vol & 0xFF); // data_lsb
 		tx_data[5] = crc8_calculate(tx_data, UART_MSG_LENGTH - 1);
 		HAL_UART_Transmit_IT(&huart1, (uint8_t *)tx_data, UART_MSG_LENGTH);
+		while(huart1.gState != HAL_UART_STATE_READY)
+		{
+			;
+		}
 
 		HAL_ADC_Stop(&hadc);
 	}

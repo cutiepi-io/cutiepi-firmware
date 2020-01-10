@@ -53,7 +53,6 @@ void SVC_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 void RCC_IRQHandler(void);
-void ADC1_IRQHandler(void);
 void USART1_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 void time_10ms_proc(void);

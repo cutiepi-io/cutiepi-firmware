@@ -61,6 +61,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc;
 
+CRC_HandleTypeDef hcrc;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -77,6 +79,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -98,7 +101,13 @@ void Set_CurrentPowState(uint32_t state)
 	 current_powerState = state;
 }
 
-
+//void BatteryVol_Check_And_Send(void)
+//{
+//	if(Get_CurrentPowState() != OFF)
+//	{
+//		HAL_ADC_Start_IT(&hadc);
+//	}
+//}
 
 void scan_key(void)
 {
@@ -233,6 +242,7 @@ void time_10ms_proc(void)
 
 void time_1000ms_proc(void)
 {
+	  //BatteryVol_Check_And_Send();
 	uint8_t current_pow_sts;
 
 	current_pow_sts = Get_CurrentPowState();
@@ -273,6 +283,7 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC_Init();
   MX_USART1_UART_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
   /**/
   LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
@@ -402,6 +413,37 @@ static void MX_ADC_Init(void)
   //LL_ADC_Enable(ADC1);
   //while(!LL_ADC_IsActiveFlag_ADRDY(ADC1)); //wait for ready
   /* USER CODE END ADC_Init 2 */
+
+}
+
+/**
+  * @brief CRC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CRC_Init(void)
+{
+
+  /* USER CODE BEGIN CRC_Init 0 */
+
+  /* USER CODE END CRC_Init 0 */
+
+  /* USER CODE BEGIN CRC_Init 1 */
+
+  /* USER CODE END CRC_Init 1 */
+  hcrc.Instance = CRC;
+  hcrc.Init.DefaultPolynomialUse = DEFAULT_POLYNOMIAL_ENABLE;
+  hcrc.Init.DefaultInitValueUse = DEFAULT_INIT_VALUE_ENABLE;
+  hcrc.Init.InputDataInversionMode = CRC_INPUTDATA_INVERSION_NONE;
+  hcrc.Init.OutputDataInversionMode = CRC_OUTPUTDATA_INVERSION_DISABLE;
+  hcrc.InputDataFormat = CRC_INPUTDATA_FORMAT_BYTES;
+  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CRC_Init 2 */
+
+  /* USER CODE END CRC_Init 2 */
 
 }
 
