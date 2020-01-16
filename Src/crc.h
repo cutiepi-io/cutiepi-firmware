@@ -1,8 +1,12 @@
 /*
- * crc.h
+ *   ******************************************************************************
+ *  Copyright (c) 2019-2020 Lijun.Cui
+ *  All rights reserved.
  *
- *  Created on: Jul 20, 2019
- *      Author: cljun
+ *  Created on: 05/19/2019
+ *  Author: Lijun.Cui
+ *  mail: cljun08@163.com
+ *   ******************************************************************************
  */
 
 #ifndef CRC_H_

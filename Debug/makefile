@@ -29,9 +29,6 @@ stm32f0.elf \
 SIZE_OUTPUT += \
 default.size.stdout \
 
-OBJDUMP_LIST += \
-stm32f0.list \
-
 OBJCOPY_HEX += \
 stm32f0.hex \
 
@@ -40,18 +37,13 @@ stm32f0.hex \
 all: stm32f0.elf secondary-outputs
 
 # Tool invocations
-stm32f0.elf: $(OBJS) $(USER_OBJS) ../STM32F030F4PX_FLASH.ld
-	arm-none-eabi-gcc -o "stm32f0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"../STM32F030F4PX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32f0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm32f0.elf: $(OBJS) $(USER_OBJS) E:\Projects\CutiePi\cutiepi-firmware\STM32F030F4PX_FLASH.ld
+	arm-none-eabi-gcc -o "stm32f0.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0 -T"E:\Projects\CutiePi\cutiepi-firmware\STM32F030F4PX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm32f0.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 default.size.stdout: $(EXECUTABLES)
 	arm-none-eabi-size  $(EXECUTABLES)
-	@echo 'Finished building: $@'
-	@echo ' '
-
-stm32f0.list: $(EXECUTABLES)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "stm32f0.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
@@ -65,7 +57,7 @@ clean:
 	-$(RM)  *.hex *.elf *.map ./*/*.o ./*/*.d ./*/*.su ./*/*/*/*.o ./*/*/*/*.d ./*/*/*/*.su 
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJCOPY_HEX)
 
 .PHONY: all clean dependents
 .SECONDARY:

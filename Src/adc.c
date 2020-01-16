@@ -1,8 +1,12 @@
 /*
- * adc.c
+ *   ******************************************************************************
+ *  Copyright (c) 2019-2020 Lijun.Cui
+ *  All rights reserved.
  *
- *  Created on: 2019年5月19日
- *      Author: cljun
+ *  Created on: 05/19/2019
+ *  Author: Lijun.Cui
+ *  mail: cljun08@163.com
+ *   ******************************************************************************
  */
 
 #include "stm32f0xx.h"

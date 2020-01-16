@@ -1,9 +1,14 @@
 /*
- * usart.c
+ *   ******************************************************************************
+ *  Copyright (c) 2019-2020 Lijun.Cui
+ *  All rights reserved.
  *
- *  Created on: May 14, 2019
- *      Author: cljun
+ *  Created on: 05/19/2019
+ *  Author: Lijun.Cui
+ *  mail: cljun08@163.com
+ *   ******************************************************************************
  */
+
 #include "stm32f0xx.h"
 #include "main.h"
 #include "crc.h"

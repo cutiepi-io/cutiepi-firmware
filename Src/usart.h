@@ -1,15 +1,19 @@
 /*
- * usart.h
+ *   ******************************************************************************
+ *  Copyright (c) 2019-2020
+ *  All rights reserved.
  *
- *  Created on: May 16, 2019
- *      Author: cljun
+ *  Created on: 05/19/2019
+ *  Author: Cui Lijun
+ *  mail: cljun08@163.com
+ *   ******************************************************************************
  */
 
 #ifndef USART_H_
 #define USART_H_
 
 #define PAYLOAD_POS   0x4u
-#define UART_MSG_LENGTH   0x06
+//#define UART_MSG_LENGTH   0x06
 
 #define IPC_HEADER   0xa55a
 #define	SHORT_PRESS    0x01
