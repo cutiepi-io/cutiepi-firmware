@@ -22,4 +22,4 @@
 ## Compile 
 
     cd Debug/
-    make -f makefile all 
+    make -f Makefile all 
