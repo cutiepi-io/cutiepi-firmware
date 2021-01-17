@@ -42,6 +42,7 @@
 #define BATT_VOL_SEND_PERIOD    1000 //ms
 #define POWKEY_ACTIVE 	    0
 #define POWKEY_DEACTIVE 	1
+#define DURATION_S(sec)    ((sec * 1000)/10)
 
 
 
@@ -165,18 +166,15 @@ void scan_key(void)
 		  {
 			  u32KeyTimerCnt = 0;
 			  flag_key = 0;
-	//			  if(/*LL_GPIO_IsOutputPinSet(BOOST_EN_GPIO_Port,BOOST_EN_Pin) &&*/
-	//				 LL_GPIO_IsOutputPinSet(CHARGE_EN_GPIO_Port,CHARGE_EN_Pin) &&
-	//				 LL_GPIO_IsOutputPinSet(IN2SYS_EN_GPIO_Port,IN2SYS_EN_Pin))
 			  if(ON == current_powerState)
 			  {
-				  Uart_TxData[2] = 1; //key msg
+				  Uart_TxData[2] = 1; // data_lsb
 				  Uart_TxData[3] = 0; // data_msb
-				  Uart_TxData[4] = MIDDLE_PRESS; // data_lsb
+				  Uart_TxData[4] = MIDDLE_PRESS; //payload
 				  Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
 				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-				  HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
-				  Set_CurrentPowState(WAITING_OFF);
+				  //HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+				  //Set_CurrentPowState(WAITING_OFF);
 			  }
 			  else
 			  {
@@ -198,23 +196,33 @@ void scan_key(void)
 			  flag_key = 0;
 		  }
 	 }
-	  if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
+	  if(u32KeyTimerCnt >= LONG_PRESS_DURATION - DURATION_S(1))
 	  {
-		  /**/
-		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-		  Set_CurrentPowState(OFF);
-
-		  u32KeyTimerCnt = 0;
-		  flag_key = 0;
+        Uart_TxData[2] = 1; // data_lsb
+        Uart_TxData[3] = 0; // data_msb
+        Uart_TxData[4] = LONG_PRESS; //payload
+        Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
+        HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
+        HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+        Set_CurrentPowState(WAITING_OFF);
 
 	  }
+    if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
+    {
+        /**/
+        LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+        /**/
+        LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+        /**/
+        LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+
+        Set_CurrentPowState(OFF);
+
+        u32KeyTimerCnt = 0;
+        flag_key = 0;
+    }
 }
 
 void time_10ms_proc(void)
@@ -234,6 +242,8 @@ void time_10ms_proc(void)
 		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
 		  Set_CurrentPowState(OFF);
+      u32KeyTimerCnt = 0;
+      flag_key = 0;
 	  }
 }
 
@@ -463,10 +473,10 @@ static void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
   /**/
-  LL_GPIO_ResetOutputPin(MCU_REV1_GPIO_Port, MCU_REV1_Pin);
+  //LL_GPIO_ResetOutputPin(MCU_REV1_GPIO_Port, MCU_REV1_Pin);
 
   /**/
-  LL_GPIO_ResetOutputPin(MCU_REV2_GPIO_Port, MCU_REV2_Pin);
+  //LL_GPIO_ResetOutputPin(MCU_REV2_GPIO_Port, MCU_REV2_Pin);
 
   /**/
   LL_GPIO_ResetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
@@ -481,20 +491,20 @@ static void MX_GPIO_Init(void)
   LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
   /**/
-  GPIO_InitStruct.Pin = MCU_REV1_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
+  // GPIO_InitStruct.Pin = MCU_REV1_Pin;
+  // GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  // GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+  // GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  // GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  // LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  GPIO_InitStruct.Pin = MCU_REV2_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(MCU_REV2_GPIO_Port, &GPIO_InitStruct);
+  // GPIO_InitStruct.Pin = MCU_REV2_Pin;
+  // GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  // GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+  // GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  // GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  // LL_GPIO_Init(MCU_REV2_GPIO_Port, &GPIO_InitStruct);
 
   /**/
   GPIO_InitStruct.Pin = MCU_IND_Pin;

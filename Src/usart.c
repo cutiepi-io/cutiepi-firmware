@@ -27,11 +27,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	{
 
 	}
-	else if(huart->pRxBuffPtr[PAYLOAD_POS] == MIDDLE_PRESS_ACK)
+	else if(huart->pRxBuffPtr[PAYLOAD_POS] == LONG_PRESS_ACK)
 	{
-		Set_CurrentPowState(READY_OFF);
+		if( WAITING_OFF == Get_CurrentPowState())
+		{
+			Set_CurrentPowState(READY_OFF);
+		}
 	}
-	else if(huart->pRxBuffPtr[PAYLOAD_POS] == MIDDLE_PRESS_CANCEL_ACK)
+	else if(huart->pRxBuffPtr[PAYLOAD_POS] == LONG_PRESS_CANCEL_ACK)
 	{
 		Set_CurrentPowState(ON);
 	}

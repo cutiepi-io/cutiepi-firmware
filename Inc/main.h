@@ -64,6 +64,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void Set_CurrentPowState(uint32_t state);
+uint8_t Get_CurrentPowState(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

@@ -24,7 +24,8 @@
 
 #define	SHORT_PRESS_ACK    0xF1
 #define	MIDDLE_PRESS_ACK   0xF2
-#define	MIDDLE_PRESS_CANCEL_ACK   0xFF
+#define	LONG_PRESS_ACK     0xF3
+#define	LONG_PRESS_CANCEL_ACK   0xFF
 #define IS_CHARGING_ACK     0xF4
 #define IS_NOT_CHARGING_ACK 0xF5
 
