@@ -17,15 +17,13 @@
 
 #define IPC_HEADER   0xa55a
 #define	SHORT_PRESS    0x01
-#define	MIDDLE_PRESS   0x02
-#define LONG_PRESS	   0x03
+#define	SHUTDOWN_PRESS   0x03
 #define IS_CHARGING    0x04
 #define IS_NOT_CHARGING 0x05
 
 #define	SHORT_PRESS_ACK    0xF1
-#define	MIDDLE_PRESS_ACK   0xF2
-#define	LONG_PRESS_ACK     0xF3
-#define	LONG_PRESS_CANCEL_ACK   0xFF
+#define	SHUTDOWN_PRESS_CONFIRM_ACK   0xF3
+#define	SHUTDOWN_PRESS_CANCEL_ACK   0xFC
 #define IS_CHARGING_ACK     0xF4
 #define IS_NOT_CHARGING_ACK 0xF5
 

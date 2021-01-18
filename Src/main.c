@@ -38,7 +38,8 @@
 /* USER CODE BEGIN PD */
 #define SHORT_PRESS_DURATION	1000/10
 #define MIDDLE_PRESS_DURATION	4000/10
-#define LONG_PRESS_DURATION		6000/10
+#define SHUTDOWN_CM_DURATION  6000/10
+#define LONG_PRESS_DURATION		10000/10 /*shutdown CM forcely*/
 #define BATT_VOL_SEND_PERIOD    1000 //ms
 #define POWKEY_ACTIVE 	    0
 #define POWKEY_DEACTIVE 	1
@@ -166,19 +167,10 @@ void scan_key(void)
 		  {
 			  u32KeyTimerCnt = 0;
 			  flag_key = 0;
-			  if(ON == current_powerState)
+			  if(OFF == current_powerState)
 			  {
-				  Uart_TxData[2] = 1; // data_lsb
-				  Uart_TxData[3] = 0; // data_msb
-				  Uart_TxData[4] = MIDDLE_PRESS; //payload
-				  Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
-				  HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-				  //HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
-				  //Set_CurrentPowState(WAITING_OFF);
-			  }
-			  else
-			  {
-				  /**/
+           /*power on CM*/
+          /**/
 				  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 
 				  /**/
@@ -188,25 +180,40 @@ void scan_key(void)
 				  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
 				  Set_CurrentPowState(ON);
+         
+			  }
+			  else
+			  { 
+          /*Do nothing*/
 			  }
 		  }
+      else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
+      {
+        	u32KeyTimerCnt = 0;
+			    flag_key = 0;
+          if(Get_CurrentPowState() != OFF)
+          {
+            Uart_TxData[2] = 1; // data_lsb
+            Uart_TxData[3] = 0; // data_msb
+            Uart_TxData[4] = SHUTDOWN_PRESS; //payload
+            Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
+            HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
+            HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+            Set_CurrentPowState(WAITING_OFF);
+          }
+          else
+          {
+            /*Do nothing*/
+          }
+          
+      }
 		  else
 		  {
 			  u32KeyTimerCnt = 0;
 			  flag_key = 0;
 		  }
 	 }
-	  if(u32KeyTimerCnt >= LONG_PRESS_DURATION - DURATION_S(1))
-	  {
-        Uart_TxData[2] = 1; // data_lsb
-        Uart_TxData[3] = 0; // data_msb
-        Uart_TxData[4] = LONG_PRESS; //payload
-        Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
-        HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-        HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
-        Set_CurrentPowState(WAITING_OFF);
 
-	  }
     if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
     {
         /**/
@@ -230,7 +237,7 @@ void time_10ms_proc(void)
 	scan_key();
 	  /*After pi excute power off sequence, it sends out ready off state to mcu,which will set
 	   *  current_powerState to READY_OFF*/
-	  if(current_powerState == READY_OFF)
+	  if(Get_CurrentPowState() == READY_OFF)
 	  {
 		  /**/
 		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
