@@ -151,8 +151,7 @@ void scan_key(void)
 
 	if((flag_key & KEY_RELEASED) != 0)
 	{
-		  if(0 < u32KeyTimerCnt && u32KeyTimerCnt <= SHORT_PRESS_DURATION
-				  && ON == current_powerState)
+		  if(0 < u32KeyTimerCnt && u32KeyTimerCnt <= SHORT_PRESS_DURATION)
 		  {
 			  flag_key = 0;
 			  u32KeyTimerCnt = 0;
