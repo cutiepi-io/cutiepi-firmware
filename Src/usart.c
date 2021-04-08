@@ -23,6 +23,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	huart->pRxBuffPtr -= UART_MSG_LENGTH; //set offset to buffer head
+
 	if(huart->pRxBuffPtr[PAYLOAD_POS] == SHORT_PRESS_ACK)
 	{
 
