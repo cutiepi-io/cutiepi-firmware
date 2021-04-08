@@ -100,14 +100,6 @@ void Set_CurrentPowState(uint32_t state)
 	 current_powerState = state;
 }
 
-//void BatteryVol_Check_And_Send(void)
-//{
-//	if(Get_CurrentPowState() != OFF)
-//	{
-//		HAL_ADC_Start_IT(&hadc);
-//	}
-//}
-
 void scan_key(void)
 {
 	static uint8_t debounce_time = 1; //10ms
@@ -189,22 +181,7 @@ void scan_key(void)
       else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
       {
         	u32KeyTimerCnt = 0;
-			    flag_key = 0;
-          if(Get_CurrentPowState() != OFF)
-          {
-            Uart_TxData[2] = 1; // data_lsb
-            Uart_TxData[3] = 0; // data_msb
-            Uart_TxData[4] = SHUTDOWN_PRESS; //payload
-            Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
-            HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-            HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
-            Set_CurrentPowState(WAITING_OFF);
-          }
-          else
-          {
-            /*Do nothing*/
-          }
-          
+			    flag_key = 0;   
       }
 		  else
 		  {
@@ -212,23 +189,47 @@ void scan_key(void)
 			  flag_key = 0;
 		  }
 	 }
+   else
+   {
+      if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
+      {
+            if(Get_CurrentPowState() != OFF)
+            {
+              Uart_TxData[2] = 1; // data_lsb
+              Uart_TxData[3] = 0; // data_msb
+              Uart_TxData[4] = SHUTDOWN_PRESS; //payload
+              Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
+              HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
+              HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+              Set_CurrentPowState(WAITING_OFF);
+            }
+            else
+            {
+              /*Do nothing*/
+            }
+            
+      }
+      else if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
+      {
+          /**/
+          LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 
-    if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
-    {
-        /**/
-        LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+          /**/
+          LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 
-        /**/
-        LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+          /**/
+          LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
-        /**/
-        LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+          Set_CurrentPowState(OFF);
 
-        Set_CurrentPowState(OFF);
-
-        u32KeyTimerCnt = 0;
-        flag_key = 0;
-    }
+          u32KeyTimerCnt = 0;
+          flag_key = 0;
+      }
+      else
+      {
+        /* code */
+      } 
+   }
 }
 
 void time_10ms_proc(void)
@@ -255,7 +256,6 @@ void time_10ms_proc(void)
 
 void time_1000ms_proc(void)
 {
-	  //BatteryVol_Check_And_Send();
 	uint8_t current_pow_sts;
 
 	current_pow_sts = Get_CurrentPowState();
