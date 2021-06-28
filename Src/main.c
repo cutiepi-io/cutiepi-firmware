@@ -158,25 +158,6 @@ void scan_key(void)
 		  {
 			  u32KeyTimerCnt = 0;
 			  flag_key = 0;
-			  if(OFF == current_powerState)
-			  {
-           /*power on CM*/
-          /**/
-				  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-				  /**/
-				  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-				  /**/
-				  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-				  Set_CurrentPowState(ON);
-         
-			  }
-			  else
-			  { 
-          /*Do nothing*/
-			  }
 		  }
       else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
       {
@@ -191,7 +172,28 @@ void scan_key(void)
 	 }
    else
    {
-      if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
+     if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
+		  {
+			  if(OFF == current_powerState)
+			  {
+           /*power on CM*/
+          /**/
+				  LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+
+				  /**/
+				  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+				  /**/
+				  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+
+				  Set_CurrentPowState(ON);
+			  }
+			  else
+			  { 
+          /*Do nothing*/
+			  }
+		  }
+      else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
       {
             if(Get_CurrentPowState() != OFF)
             {
