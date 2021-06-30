@@ -12,7 +12,7 @@
 #ifndef USART_H_
 #define USART_H_
 
-#define PAYLOAD_POS   0x4u
+#define PAYLOAD_POS   0x5u //CM payload position,fixed lenth (MIN_IPC_MSG_LEN+1 = 7)
 //#define UART_MSG_LENGTH   0x06
 
 #define IPC_HEADER   0xa55a
@@ -26,6 +26,7 @@
 #define	SHUTDOWN_PRESS_CANCEL_ACK   0xFC
 #define IS_CHARGING_ACK     0xF4
 #define IS_NOT_CHARGING_ACK 0xF5
+#define MCU_VERSION_GET    0xF6
 
 enum {
 	OFF = 0,

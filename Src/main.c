@@ -68,7 +68,7 @@ UART_HandleTypeDef huart1;
 /* USER CODE BEGIN PV */
 uint8_t flag_key = 0;
 static uint8_t current_powerState = OFF;
-static uint8_t Uart_TxData[6] = {0};
+static uint8_t Uart_TxData[10] = {0};
 static uint8_t Uart_RxData[10] = {0};
 uint32_t u32KeyTimerCnt;
 extern uint32_t flag_time;
@@ -148,11 +148,12 @@ void scan_key(void)
 			  flag_key = 0;
 			  u32KeyTimerCnt = 0;
 			  Uart_TxData[2] = 1; //key msg
-        Uart_TxData[3] = 0; // data_msb
-			  Uart_TxData[4] = SHORT_PRESS; // data_lsb
-			  Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
-			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-			  HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+        Uart_TxData[3] = 1; // len,lsb
+        Uart_TxData[4] = 0; // len,msb
+			  Uart_TxData[5] = SHORT_PRESS; 
+			  Uart_TxData[6] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH );
+			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
+			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
 		  }
 		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
 		  {
@@ -195,14 +196,15 @@ void scan_key(void)
 		  }
       else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
       {
-            if(Get_CurrentPowState() != OFF)
+            if(Get_CurrentPowState() != OFF && Get_CurrentPowState() != READY_OFF)
             {
-              Uart_TxData[2] = 1; // data_lsb
-              Uart_TxData[3] = 0; // data_msb
-              Uart_TxData[4] = SHUTDOWN_PRESS; //payload
-              Uart_TxData[5] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH - 1);
-              HAL_UART_Transmit_IT(&huart1, Uart_TxData, UART_MSG_LENGTH);
-              HAL_UART_Receive_IT(&huart1, Uart_RxData, UART_MSG_LENGTH);
+              Uart_TxData[2] = 1;//key msg
+              Uart_TxData[3] = 1; // len_lsb
+              Uart_TxData[4] = 0; // len_msb
+              Uart_TxData[5] = SHUTDOWN_PRESS; //payload
+              Uart_TxData[6] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH );
+              HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
+              HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
               Set_CurrentPowState(WAITING_OFF);
             }
             else
@@ -251,8 +253,6 @@ void time_10ms_proc(void)
 		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
 		  Set_CurrentPowState(OFF);
-      u32KeyTimerCnt = 0;
-      flag_key = 0;
 	  }
 }
 

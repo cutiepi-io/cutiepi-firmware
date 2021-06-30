@@ -29,4 +29,5 @@
 "Src/sysmem.o"
 "Src/system_stm32f0xx.o"
 "Src/usart.o"
+"Src/version.o"
 "Startup/startup_stm32f030f4px.o"

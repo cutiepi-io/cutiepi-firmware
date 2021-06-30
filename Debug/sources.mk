@@ -13,6 +13,7 @@ SIZE_OUTPUT :=
 EXECUTABLES := 
 OBJS := 
 C_DEPS := 
+OBJCOPY_BIN := 
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
