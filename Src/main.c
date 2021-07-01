@@ -225,9 +225,6 @@ void scan_key(void)
           LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
           Set_CurrentPowState(OFF);
-
-          u32KeyTimerCnt = 0;
-          flag_key = 0;
       }
       else
       {
