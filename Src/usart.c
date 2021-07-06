@@ -18,7 +18,7 @@
 
 
 uint8_t version[32] = {0xFF};
-extern uint8_t def_version[32];
+extern char def_version[32];
 extern UART_HandleTypeDef huart1;
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
@@ -47,6 +47,8 @@ void uart_transmit(uint32_t ch, uint8_t *data, uint32_t data_len)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	uint32_t Ver_Len;
+
 	huart->pRxBuffPtr -= UART_MSG_LENGTH + 1; //set offset to buffer head
 	
 	switch(huart->pRxBuffPtr[PAYLOAD_POS])
@@ -72,13 +74,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		break;
 
 		case MCU_VERSION_GET:
-			if( 0 == read_ver(LOGISTIC_DATA_START_ADDRESS, version, LOGISTIC_DATA_LENGTH))
+			if( 0 == read_ver(LOGISTIC_DATA_START_ADDRESS, version, &Ver_Len))
 			{
-				uart_transmit(1, version, LOGISTIC_DATA_LENGTH);
+				uart_transmit(1, version, Ver_Len);
 			}
 			else
 			{
-				uart_transmit(1, def_version, LOGISTIC_DATA_LENGTH);
+				uart_transmit(1, (uint8_t *)def_version, strlen(def_version));
 			}
 			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;

@@ -296,6 +296,8 @@ int main(void)
   MX_ADC_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  /*enable uart rx interrupt after init*/
+  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
   /**/
   LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 

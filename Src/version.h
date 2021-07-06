@@ -19,6 +19,6 @@
 #define LOGISTIC_DATA_LENGTH       (6)
 
 
-uint32_t read_ver(uint8_t* address, uint8_t data[32], uint32_t len);
+uint32_t read_ver(const uint8_t* address, uint8_t data[32], uint32_t *len);
 
 #endif /* VERSION_H_ */
