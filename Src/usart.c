@@ -85,6 +85,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
+		case POWEROFF_CMD:
+			Set_CurrentPowState(READY_OFF);
+			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
+		break;
+
 		default:
 			break;
 	}

@@ -27,6 +27,7 @@
 #define IS_CHARGING_ACK     0xF4
 #define IS_NOT_CHARGING_ACK 0xF5
 #define MCU_VERSION_GET    0xF6
+#define POWEROFF_CMD       0xF7
 
 enum {
 	OFF = 0,
