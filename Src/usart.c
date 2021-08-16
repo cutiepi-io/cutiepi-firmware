@@ -49,6 +49,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	uint32_t Ver_Len;
 
+	if( huart->RxXferSize != (UART_MSG_LENGTH + 1) ) /* wrong message format */
+	{
+		HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
+		return;
+	}
+
 	huart->pRxBuffPtr -= UART_MSG_LENGTH + 1; //set offset to buffer head
 	
 	switch(huart->pRxBuffPtr[PAYLOAD_POS])
