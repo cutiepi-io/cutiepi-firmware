@@ -32,6 +32,9 @@ default.size.stdout \
 OBJCOPY_HEX += \
 stm32f0.hex \
 
+OBJCOPY_BIN += \
+stm32f0.bin \
+
 
 # All Target
 all: stm32f0.elf secondary-outputs
@@ -52,12 +55,17 @@ stm32f0.hex: $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+stm32f0.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "stm32f0.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
 	-$(RM)  *.hex *.elf *.map ./*/*.o ./*/*.d ./*/*.su ./*/*/*/*.o ./*/*/*/*.d ./*/*/*/*.su 
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJCOPY_HEX)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJCOPY_HEX) $(OBJCOPY_BIN)
 
 .PHONY: all clean dependents
 .SECONDARY:
