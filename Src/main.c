@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
+ * All rights reserved.</center></h2>
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -23,10 +23,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usart.h"
 #include "adc.h"
-#include "crc.h"
+#include "version.h"
+#include "checksum.h"
 #include "stm32f0xx_it.h"
+#include <stdint.h>
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,28 +38,24 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SHORT_PRESS_DURATION	1000/10
-#define MIDDLE_PRESS_DURATION	4000/10
-#define SHUTDOWN_CM_DURATION  6000/10
-#define LONG_PRESS_DURATION		10000/10 /*shutdown CM forcely*/
-#define BATT_VOL_SEND_PERIOD    1000 //ms
-#define POWKEY_ACTIVE 	    0
-#define POWKEY_DEACTIVE 	1
-#define DURATION_S(sec)    ((sec * 1000)/10)
-
-
-
+#define BATT_VOL_SEND_PERIOD 1000 // ms
+#define POWKEY_ACTIVE 0
+#define POWKEY_DEACTIVE 1
+#define DURATION_S(sec) ((sec * 1000) / 10)
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-#define TRUE  1
+#define TRUE 1
 #define FALSE 0
-#define KEY_FIRST_ON        0x01
-#define KEY_DEBOUNCE_START  0x02
-#define KEY_DEBOUNCE_END    0x04
-#define KEY_RELEASED        0x08
+
+#define KEY_EVT_NULL 0x00
+#define KEY_EVT_SHORT_CLICKED 0x01
+#define KEY_EVT_SHORT_PRESSED 0x02
+#define KEY_EVT_MIDDLE_PRESSED 0x04
+#define KEY_EVT_LONG_PRESSED 0x08
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -66,12 +64,24 @@ ADC_HandleTypeDef hadc;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-uint8_t flag_key = 0;
+
+static uint32_t min_limit_key_short_clicked = 100;
+static uint32_t max_limit_key_short_clicked = 500;
+static uint32_t min_limit_key_short_pressed = 1500;
+static uint32_t min_limit_key_middle_pressed = 2500;
+static uint32_t min_limit_key_long_pressed = 8000;
+static uint32_t current_key_evt = KEY_EVT_NULL;
+
+/// 5000 ms time delay before power off
+static const uint32_t power_off_delay = 12000;
+
 static uint8_t current_powerState = OFF;
-static uint8_t Uart_TxData[10] = {0};
-static uint8_t Uart_RxData[10] = {0};
-uint32_t u32KeyTimerCnt;
+static uint8_t Uart_RxData[16] = {0};
+
+static uint8_t current_cmd_from_pi = PI_MSG_NULL;
+
 extern uint32_t flag_time;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -79,7 +89,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 static void MX_USART1_UART_Init(void);
-static void Pow_GPIO_Dir_Set(int dir);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -88,183 +97,358 @@ static void Pow_GPIO_Dir_Set(int dir);
 /* USER CODE BEGIN 0 */
 uint32_t Get_Switch_Key_Val(GPIO_TypeDef *GPIOx, uint32_t key)
 {
-	return (LL_GPIO_IsInputPinSet(GPIOx, key) == TRUE) ? POWKEY_DEACTIVE :POWKEY_ACTIVE;
+    return (LL_GPIO_IsInputPinSet(GPIOx, key) == TRUE) ? POWKEY_DEACTIVE
+                                                       : POWKEY_ACTIVE;
 }
 
-uint8_t Get_CurrentPowState(void)
-{
-	return current_powerState;
+static uint32_t Get_CurrentKeyEvent(void) { return current_key_evt; }
+
+uint32_t Get_CurrentPowerState(void) { return current_powerState; }
+
+static void toggle_indicator_led(void){
+	static uint8_t indicator = 0;
+	if(indicator){
+		LL_GPIO_SetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
+	}else{
+		LL_GPIO_ResetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
+	}
+	indicator = !indicator;
 }
 
-void Set_CurrentPowState(uint32_t state)
+static void Set_CurrentPowerState(uint32_t state)
 {
-	 current_powerState = state;
+    current_powerState = state;
 }
 
-void scan_key(void)
+static void Set_PowerGPIOInput(void)
 {
-	static uint8_t debounce_time = 1; //10ms
+    LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	  if((flag_key & KEY_FIRST_ON) == FALSE)
-	  {
-		  if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
-		  {
-			  flag_key |= KEY_FIRST_ON;
-			  flag_key |= KEY_DEBOUNCE_START;
-		  }
-	  }
-	  else if(flag_key & KEY_DEBOUNCE_START)
-	  {
-		  debounce_time--;
-		  if(debounce_time == 0)
-		  {
-			  debounce_time = 1;
-			  flag_key &= ~KEY_DEBOUNCE_START;
-			  flag_key |= KEY_DEBOUNCE_END;
-		  }
-	  }
-	  else if(flag_key & KEY_DEBOUNCE_END)
-	  {
+    GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+}
 
-		  if(POWKEY_ACTIVE == Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
-		  {
-			  u32KeyTimerCnt++;
-		  }
-		  else
-		  {
-			  flag_key &= ~KEY_DEBOUNCE_END;
-			  flag_key |= KEY_RELEASED;
-		  }
+static void Set_PowerGPIOOutput(void)
+{
+    LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
-	  }
-	  else
-	  {
+    GPIO_InitStruct.Pin = BOOST_EN_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
 
-	  }
+    GPIO_InitStruct.Pin = CHARGE_EN_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
 
-	if((flag_key & KEY_RELEASED) != 0)
-	{
-		  if(0 < u32KeyTimerCnt && u32KeyTimerCnt <= SHORT_PRESS_DURATION)
-		  {
-			  flag_key = 0;
-			  u32KeyTimerCnt = 0;
-			  Uart_TxData[2] = 1; //key msg
-        Uart_TxData[3] = 1; // len,lsb
-        Uart_TxData[4] = 0; // len,msb
-			  Uart_TxData[5] = SHORT_PRESS; 
-			  Uart_TxData[6] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH );
-			  HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
-			  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
-		  }
-		  else if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
-		  {
-			  u32KeyTimerCnt = 0;
-			  flag_key = 0;
-		  }
-      else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
-      {
-        	u32KeyTimerCnt = 0;
-			    flag_key = 0;   
-      }
-		  else
-		  {
-			  u32KeyTimerCnt = 0;
-			  flag_key = 0;
-		  }
-	 }
-   else
-   {
-     if(SHORT_PRESS_DURATION < u32KeyTimerCnt && u32KeyTimerCnt <= MIDDLE_PRESS_DURATION)
-		  {
-			  if(OFF == current_powerState)
-			  {
-           /*power on CM*/
-          /**/
-				  //LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+    GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+    LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+}
 
-				  /**/
-				  //LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+/**
+ * @brief Get latest command from Pi
+ *
+ * @return uint8_t latest command need to response
+ */
+uint8_t Get_MsgFromPi(void)
+{
+    uint8_t ret_cmd = current_cmd_from_pi;
+    return ret_cmd;
+}
 
-				  /**/
-				  //LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-          
-          Pow_GPIO_Dir_Set(0);
-				  Set_CurrentPowState(ON);
-			  }
-			  else
-			  { 
-          /*Do nothing*/
-			  }
-		  }
-      else if(SHUTDOWN_CM_DURATION <= u32KeyTimerCnt && u32KeyTimerCnt < LONG_PRESS_DURATION)
-      {
-            if(Get_CurrentPowState() != OFF && Get_CurrentPowState() != READY_OFF)
-            {
-              Uart_TxData[2] = 1;//key msg
-              Uart_TxData[3] = 1; // len_lsb
-              Uart_TxData[4] = 0; // len_msb
-              Uart_TxData[5] = SHUTDOWN_PRESS; //payload
-              Uart_TxData[6] = crc8_calculate(Uart_TxData, UART_MSG_LENGTH );
-              HAL_UART_Transmit_IT(&huart1, Uart_TxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
-              HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
-              Set_CurrentPowState(WAITING_OFF);
-            }
-            else
-            {
-              /*Do nothing*/
-            }
-            
-      }
-      else if(u32KeyTimerCnt >= LONG_PRESS_DURATION)
-      {
-          Pow_GPIO_Dir_Set(1);
-          /**/
-          LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+void Clear_MsgFromPi(void) { current_cmd_from_pi = PI_MSG_NULL; }
 
-          /**/
-          LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+void Set_MsgFromPi(uint8_t cmd) { current_cmd_from_pi = cmd; }
 
-          /**/
-          LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+static int32_t RPi_boot_pin_down_ms = 0;
+static uint32_t RPi_alive_status = 0;
 
-          Set_CurrentPowState(OFF);
-      }
-      else
-      {
-        /* code */
-      } 
-   }
+static uint32_t CheckRPiChipAlive(void) {
+
+	if (LL_GPIO_IsInputPinSet(MCU_REV2_GPIO_Port, MCU_REV2_Pin)) {
+		RPi_boot_pin_down_ms = 0;
+		RPi_alive_status = 1;
+	} else {
+		RPi_boot_pin_down_ms += 10;
+	}
+
+	if (RPi_boot_pin_down_ms >= 3000) {
+		RPi_boot_pin_down_ms = 3000;
+		RPi_alive_status = 0;
+	}
+
+	return RPi_alive_status;
+}
+
+static void PowStateMichne(void)
+{
+    static uint32_t current_state_counter_ms = 0;
+
+	uint32_t RPi_is_alive = CheckRPiChipAlive();
+
+    uint8_t cmd_from_pi = Get_MsgFromPi();
+    Clear_MsgFromPi();
+
+    current_state_counter_ms += 10;
+    if (current_state_counter_ms >= 100000)
+    {
+        current_state_counter_ms = 100000;
+    }
+
+    switch (Get_CurrentPowerState())
+    {
+    case OFF:
+		Set_PowerGPIOOutput();
+        LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+        LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+        LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+        if (Get_CurrentKeyEvent() == KEY_EVT_SHORT_PRESSED)
+        {
+            Set_CurrentPowerState(ON);
+            current_state_counter_ms = 0;
+        }
+        break;
+    case WAITING_OFF:
+        if (Get_CurrentKeyEvent() == KEY_EVT_LONG_PRESSED)
+        {
+            current_state_counter_ms = 0;
+            Set_CurrentPowerState(READY_OFF);
+        }
+        else if (cmd_from_pi == PI_MSG_POWEROFF_CMD ||
+                 cmd_from_pi == PI_ACK_SHUTDOWN_PRESS_CONFIRM)
+        {
+            Set_CurrentPowerState(READY_OFF);
+            current_state_counter_ms = 0;
+        }
+        else if (cmd_from_pi == PI_ACK_SHUTDOWN_PRESS_CANCEL ||
+                 current_state_counter_ms > 5000)
+        {
+            /// concel cmd from Pi or 5 seconds timeout waiting for ack from Pi
+            Set_CurrentPowerState(ON);
+            current_state_counter_ms = 0;
+        }
+        else
+        {
+            /// nothing to do for now
+        }
+        break;
+    case READY_OFF:
+		if ((current_state_counter_ms >= power_off_delay) || (!RPi_is_alive)) {
+            Set_CurrentPowerState(OFF);
+            current_state_counter_ms = 0;
+        }
+        break;
+    case ON:
+		Set_PowerGPIOInput();
+		// LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+		LL_GPIO_SetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+		LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+
+        if (Get_CurrentKeyEvent() == KEY_EVT_LONG_PRESSED)
+        {
+            current_state_counter_ms = 0;
+            Set_CurrentPowerState(READY_OFF);
+        }
+        else if (cmd_from_pi == PI_MSG_POWEROFF_CMD ||
+                 cmd_from_pi == PI_ACK_SHUTDOWN_PRESS_CONFIRM)
+        {
+            Set_CurrentPowerState(READY_OFF);
+            current_state_counter_ms = 0;
+        }
+        else if (Get_CurrentKeyEvent() == KEY_EVT_MIDDLE_PRESSED)
+        {
+            Set_CurrentPowerState(WAITING_OFF);
+            current_state_counter_ms = 0;
+		} else if (!RPi_is_alive && current_state_counter_ms >= 2000) {
+			Set_CurrentPowerState(OFF);
+			current_state_counter_ms = 0;
+        }
+        else
+        {
+            /// nothing to do
+        }
+        break;
+    default:
+        break;
+    }
+}
+
+/**
+ * @brief scan key every 10 ms
+ *
+ * @return uint32_t the time in milliseconds the key is hold pressed.
+ */
+uint32_t scan_key(void)
+{
+    static uint32_t time_hold_pressed = 0;
+    uint32_t key_event = KEY_EVT_NULL;
+
+    if (POWKEY_ACTIVE ==
+        Get_Switch_Key_Val(switch_input_GPIO_Port, switch_input_Pin))
+    {
+        time_hold_pressed += 10;
+    }
+    else
+    {
+        if (time_hold_pressed < min_limit_key_short_clicked)
+        {
+            /// nothing to do but wait
+        }
+        else if (time_hold_pressed < max_limit_key_short_clicked) {
+			key_event = KEY_EVT_SHORT_CLICKED;
+		}
+        else if (time_hold_pressed < min_limit_key_short_pressed)
+        {
+			/// nothing to do but wait
+        }
+        else if (time_hold_pressed < min_limit_key_middle_pressed)
+        {
+            /// nothing to do here
+        }
+        else if (time_hold_pressed < min_limit_key_long_pressed)
+        {
+            /// nothing to do here
+        }
+        else
+        {
+            /// nothing to do here
+        }
+        /// clear static counter
+        time_hold_pressed = 0;
+    }
+
+    if(time_hold_pressed == min_limit_key_short_pressed){
+        key_event = KEY_EVT_SHORT_PRESSED;
+    }else if(time_hold_pressed == min_limit_key_middle_pressed){
+        key_event = KEY_EVT_MIDDLE_PRESSED;
+    }else if(time_hold_pressed == min_limit_key_long_pressed){
+        key_event = KEY_EVT_LONG_PRESSED;
+    }
+
+    return key_event;
+}
+
+void key_evt_comm_process(uint32_t key_evt)
+{
+    uint8_t tx_buff[6];
+    tx_buff[0] = 0x5a;
+    tx_buff[1] = 0xa5;
+    tx_buff[2] = MSG_TYPE_KEY;
+    tx_buff[3] = 1; // length of payload
+
+    switch (key_evt)
+    {
+    case KEY_EVT_SHORT_CLICKED:
+        tx_buff[4] = MCU_MSG_SHORT_CLICKED;
+        break;
+    case KEY_EVT_MIDDLE_PRESSED:
+        tx_buff[4] = MCU_MSG_SHUTDOWN_HOLD_PRESSED;
+        break;
+    default:
+        /// exit this function here.
+        return;
+    }
+
+    tx_buff[5] = checksum_calculate(tx_buff, 5);
+	HAL_UART_Transmit(&huart1, tx_buff, 6, 100);
+}
+
+void key_evt_process()
+{
+    current_key_evt = scan_key();
+    key_evt_comm_process(current_key_evt);
+    /// TODO: add more functional code here
+}
+
+void pi_msg_process()
+{
+    uint8_t tx[32] = {0x5a, 0xa5};
+	uint8_t ver_len;
+
+    uint8_t cmd_from_pi = Get_MsgFromPi();
+    switch (cmd_from_pi)
+    {
+    case PI_MSG_MCU_VERSION_GET:
+		tx[2] = MSG_TYPE_VERSION;
+		ver_len = read_ver(tx + 4, LOGISTIC_DATA_MAX_LENGTH);
+		if (ver_len > 0 && ver_len <= LOGISTIC_DATA_MAX_LENGTH) {
+			tx[3] = ver_len;
+			tx[4 + ver_len] = checksum_calculate(tx, 4 + ver_len);
+			HAL_UART_Transmit(&huart1, tx, 5 + ver_len, 100);
+		}
+        break;
+    default:
+        break;
+    }
+}
+
+void adc_comm_process() {
+	uint8_t tx[8] = { 0x5a, 0xa5 };
+	uint16_t adc_result = get_battery_voltage();
+
+    tx[2] = MSG_TYPE_BATTERY;
+    tx[3] = 0x02;
+    tx[4] = adc_result >> 8;
+    tx[5] = adc_result & 0xFF;
+    tx[6] = checksum_calculate(tx, 6);
+    HAL_UART_Transmit(&huart1, tx, 7, 100);
+
+    if(get_usb_voltage() > USB_CHARGE_THRESHOLD_VAL){
+        tx[2] = MSG_TYPE_CHARGING;
+        tx[3] = 1;
+        tx[4] = MCU_MSG_IS_CHARGING;
+        tx[5] = checksum_calculate(tx, 5);
+    }else{
+        tx[2] = MSG_TYPE_CHARGING;
+        tx[3] = 1;
+        tx[4] = MCU_MSG_IS_NOT_CHARGING;
+        tx[5] = checksum_calculate(tx, 5);
+    }
+    HAL_UART_Transmit(&huart1, tx, 6, 100);
+}
+
+void adc_process() {
+	ADC_update();
+    adc_comm_process();
 }
 
 void time_10ms_proc(void)
 {
-	scan_key();
-	  /*After pi excute power off sequence, it sends out ready off state to mcu,which will set
-	   *  current_powerState to READY_OFF*/
-	  if(Get_CurrentPowState() == READY_OFF)
-	  {
-      Pow_GPIO_Dir_Set(1);
-		  /**/
-		  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
-
-		  /**/
-		  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
-
-		  Set_CurrentPowState(OFF);
-	  }
+    key_evt_process();
+    pi_msg_process();
+    PowStateMichne();
 }
 
-void time_1000ms_proc(void)
+void time_1000ms_proc(void) {
+	adc_process();
+	toggle_indicator_led();
+}
+
+void time_proc(void)
 {
-	uint8_t current_pow_sts;
+    if (flag_time & FLAG_1OMS)
+    {
+        flag_time &= ~FLAG_1OMS;
+        time_10ms_proc();
+    }
 
-	current_pow_sts = Get_CurrentPowState();
-	ADC_Check_And_Send(current_pow_sts);
+    if (flag_time & FLAG_1000MS)
+    {
+        flag_time &= ~FLAG_1000MS;
+        time_1000ms_proc();
+    }
 }
-
 /* USER CODE END 0 */
 
 /**
@@ -274,10 +458,8 @@ void time_1000ms_proc(void)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	Uart_TxData[0] = 0x5a;
-	Uart_TxData[1] = 0xa5;  //ipc header
+
   /* USER CODE END 1 */
-  
 
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -285,6 +467,10 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+    LL_GPIO_ResetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
+    LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+    LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+    LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
   /* USER CODE END Init */
 
@@ -292,7 +478,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  NVIC_EnableIRQ(SysTick_IRQn);
+    NVIC_EnableIRQ(SysTick_IRQn);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -300,32 +486,30 @@ int main(void)
   MX_ADC_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  /*enable uart rx interrupt after init*/
-  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
-  /**/
-  LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
+    /*enable uart rx interrupt after init*/
+    HAL_UART_Receive_IT(&huart1, Uart_RxData, 6);
+    /**/
+    LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 
-  /**/
-  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+    /**/
+    LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 
-  /**/
-  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+    /**/
+    LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
-  //crc = HAL_CRC_Calculate(&hcrc, (uint32_t*)buf, sizeof(buf));
+    // crc = HAL_CRC_Calculate(&hcrc, (uint32_t*)buf, sizeof(buf));
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-	  time_proc();
-
-	  LL_mDelay(1);
+    while (1)
+    {
+        time_proc();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+    }
   /* USER CODE END 3 */
 }
 
@@ -339,7 +523,7 @@ void SystemClock_Config(void)
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
   RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-  /** Initializes the CPU, AHB and APB busses clocks 
+  /** Initializes the CPU, AHB and APB busses clocks
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
@@ -353,7 +537,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  /** Initializes the CPU, AHB and APB busses clocks 
+  /** Initializes the CPU, AHB and APB busses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1;
@@ -390,7 +574,7 @@ static void MX_ADC_Init(void)
   /* USER CODE BEGIN ADC_Init 1 */
 
   /* USER CODE END ADC_Init 1 */
-  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc.Instance = ADC1;
   hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
@@ -410,7 +594,7 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
-  /** Configure for the selected ADC regular channel to be converted. 
+  /** Configure for the selected ADC regular channel to be converted.
   */
   sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
@@ -419,7 +603,7 @@ static void MX_ADC_Init(void)
   {
     Error_Handler();
   }
-  /** Configure for the selected ADC regular channel to be converted. 
+  /** Configure for the selected ADC regular channel to be converted.
   */
   sConfig.Channel = ADC_CHANNEL_9;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
@@ -427,8 +611,8 @@ static void MX_ADC_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC_Init 2 */
-  //LL_ADC_Enable(ADC1);
-  //while(!LL_ADC_IsActiveFlag_ADRDY(ADC1)); //wait for ready
+    // LL_ADC_Enable(ADC1);
+    // while(!LL_ADC_IsActiveFlag_ADRDY(ADC1)); //wait for ready
   /* USER CODE END ADC_Init 2 */
 
 }
@@ -469,57 +653,6 @@ static void MX_USART1_UART_Init(void)
 
 }
 
-static void Pow_GPIO_Dir_Set(int dir)
-{
-   LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-  if(dir == 0) /*input*/
-  {
-    GPIO_InitStruct.Pin = BOOST_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
-
-    /**/
-    GPIO_InitStruct.Pin = CHARGE_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
-
-    /**/
-    GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
-  }
-  else /*output*/
-  {
-    GPIO_InitStruct.Pin = BOOST_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
-
-    /**/
-    GPIO_InitStruct.Pin = CHARGE_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
-
-    /**/
-    GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
-  }
-  
-}
-
 /**
   * @brief GPIO Initialization Function
   * @param None
@@ -535,12 +668,6 @@ static void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
   /**/
-  //LL_GPIO_ResetOutputPin(MCU_REV1_GPIO_Port, MCU_REV1_Pin);
-
-  /**/
-  //LL_GPIO_ResetOutputPin(MCU_REV2_GPIO_Port, MCU_REV2_Pin);
-
-  /**/
   LL_GPIO_ResetOutputPin(MCU_IND_GPIO_Port, MCU_IND_Pin);
 
   /**/
@@ -550,23 +677,16 @@ static void MX_GPIO_Init(void)
   LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 
   /**/
-  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+  GPIO_InitStruct.Pin = MCU_REV1_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
 
   /**/
-  // GPIO_InitStruct.Pin = MCU_REV1_Pin;
-  // GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  // GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  // GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  // GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  // LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
-
-  /**/
-  // GPIO_InitStruct.Pin = MCU_REV2_Pin;
-  // GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  // GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  // GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  // GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  // LL_GPIO_Init(MCU_REV2_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Pin = MCU_REV2_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(MCU_REV2_GPIO_Port, &GPIO_InitStruct);
 
   /**/
   GPIO_InitStruct.Pin = MCU_IND_Pin;
@@ -585,26 +705,18 @@ static void MX_GPIO_Init(void)
   /**/
   GPIO_InitStruct.Pin = BOOST_EN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
   LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
 
   /**/
   GPIO_InitStruct.Pin = CHARGE_EN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
   LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
-
-  /**/
-  GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
-  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -619,7 +731,7 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
+    /* User can add his own implementation to report the HAL error return state */
 
   /* USER CODE END Error_Handler_Debug */
 }
@@ -633,10 +745,11 @@ void Error_Handler(void)
   * @retval None
   */
 void assert_failed(char *file, uint32_t line)
-{ 
+{
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    /* User can add his own implementation to report the file name and line
+ number, tex: printf("Wrong parameters value: file %s on line %d\r\n", file,
+ line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */

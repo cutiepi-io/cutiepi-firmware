@@ -12,14 +12,8 @@
 #ifndef CRC_H_
 #define CRC_H_
 
-#define MIN_IPC_MSG_LEN  0x6u
-#define UART_MSG_LENGTH   0x6u
+#include <stdint.h>
 
-#define KEY_MSG_PAYLOAD_LEN 0x1
-#define SOC_MSG_PAYLOAD_LEN 0X2
-#define CHARGE_MSG_PAYLOAD_LEN 0x1 
-
-
-uint8_t crc8_calculate(uint8_t *psrc, uint8_t len);
+uint8_t checksum_calculate(uint8_t *psrc, uint8_t len);
 
 #endif /* CRC_H_ */

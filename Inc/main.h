@@ -47,6 +47,13 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
+enum {
+	OFF = 0,
+	WAITING_OFF,
+	READY_OFF,
+	ON
+}POWER_STATE;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -56,6 +63,28 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
+#define FLAG_1OMS      0x01
+#define FLAG_1000MS    0x02
+
+#define MSG_TYPE_KEY 0x01
+#define MSG_TYPE_BATTERY 0x02
+#define MSG_TYPE_CHARGING 0x03
+#define MSG_TYPE_VERSION 0x04
+#define MSG_TYPE_POWEROFF 0x05
+
+#define	MCU_MSG_SHORT_CLICKED 0x01
+#define	MCU_MSG_SHUTDOWN_HOLD_PRESSED   0x03
+#define MCU_MSG_IS_CHARGING    0x04
+#define MCU_MSG_IS_NOT_CHARGING 0x05
+
+#define	PI_ACK_SHORT_CLICKED    0xF1
+#define	PI_ACK_SHUTDOWN_PRESS_CONFIRM   0xF7
+#define	PI_ACK_SHUTDOWN_PRESS_CANCEL   0xFC
+#define PI_ACK_IS_CHARGING     0xF4
+#define PI_ACK_IS_NOT_CHARGING 0xF5
+#define PI_MSG_NULL 0x00
+#define PI_MSG_MCU_VERSION_GET    0xF6
+#define PI_MSG_POWEROFF_CMD       0xF7
 
 /* USER CODE END EM */
 
@@ -63,8 +92,8 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void Set_CurrentPowState(uint32_t state);
-uint8_t Get_CurrentPowState(void);
+uint32_t Get_CurrentPowState(void);
+void Set_MsgFromPi(uint8_t cmd);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

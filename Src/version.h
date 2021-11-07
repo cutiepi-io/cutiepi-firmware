@@ -15,10 +15,8 @@
 #include <stdint.h>
 
 #define LOGISTIC_DATA_START_ADDRESS   (uint8_t *)((void*)(0x8003FE0))
-#define LOGISTIC_DATA_MAX_LENGTH   (32)
-#define LOGISTIC_DATA_LENGTH       (6)
+#define LOGISTIC_DATA_MAX_LENGTH   (27)
 
-
-uint32_t read_ver(const uint8_t* address, uint8_t data[32], uint32_t *len);
+uint32_t read_ver(uint8_t data[], uint32_t len);
 
 #endif /* VERSION_H_ */

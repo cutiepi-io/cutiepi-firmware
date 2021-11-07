@@ -10,26 +10,30 @@
  */
 
 #include "version.h"
-#include <stddef.h>
+#include <string.h>
 
-const char def_version[32] = "Ver0.1 SN:123456";
+/// max message size is 32, at maximum 27 bytes left for version characters
+const char def_version[LOGISTIC_DATA_MAX_LENGTH] = "Ver:0.1 SN:123456";
 
 /**
-  * @brief  read mcu firmware version,
-  * @retval  0: valid version is read;
-  *         others: read failed or invalid version;
-  */
-uint32_t read_ver(const uint8_t* address, uint8_t data[], uint32_t *len)
+ * @brief read MCU firmware version
+ *
+ * @param data data to store version string characters
+ * @param len length of data array
+ * @return uint32_t size of version string read into data array.
+ *   If data is not large enough, the 0 is returned and version characters
+ *   are not read back.
+ */
+uint32_t read_ver(uint8_t data[], uint32_t len)
 {
 	uint32_t i;
 	uint32_t  ver_len = 0;
-	uint32_t ret = 0xFF;
-	uint8_t *ptr = NULL;
+	uint8_t *ptr = LOGISTIC_DATA_START_ADDRESS;
 
-	if(!address)
-		return ret;
+	if (len < LOGISTIC_DATA_MAX_LENGTH) {
+		return 0;
+	}
 
-	ptr = address;
 	while(*ptr && ver_len <= LOGISTIC_DATA_MAX_LENGTH)
 	{
 		data[ver_len++] = *ptr++;
@@ -43,16 +47,16 @@ uint32_t read_ver(const uint8_t* address, uint8_t data[], uint32_t *len)
 		}
 	}
 
-	if(i == ver_len)/*all 0xFF, invalid version information*/
+	/*all 0xFF, invalid version information*/
+	if(i == ver_len)
 	{
-		ret = 1;
+		/// use default version
+		ver_len = strlen(def_version);
+		for(i = 0; i < ver_len; ++i){
+			data[i] = def_version[i];
+		}
 	}
-	else
-	{
-		*len = ver_len;
-		ret = 0;
-	}
-	return ret;
+	return ver_len;
 }
 
 

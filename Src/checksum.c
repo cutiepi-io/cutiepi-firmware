@@ -9,9 +9,9 @@
  *   ******************************************************************************
  */
 
-#include <stdint.h>
+#include "checksum.h"
 
-uint8_t crc8_calculate(uint8_t *psrc, uint8_t len)
+uint8_t checksum_calculate(uint8_t *psrc, uint8_t len)
 {
   uint8_t crc8_val = 0;
   uint32_t  id;

@@ -1,6 +1,6 @@
 .settings
-Debug/*
-Release/*
+Debug
+Release
 **.d
 **.o
 **.su
@@ -8,3 +8,4 @@ Release/*
 **.elf
 **.hex
 **.map
+
