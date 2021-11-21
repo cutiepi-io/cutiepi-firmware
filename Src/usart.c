@@ -52,7 +52,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         switch (huart->pRxBuffPtr[4])
         {
         case PI_ACK_SHORT_CLICKED:
-        //case PI_ACK_SHUTDOWN_PRESS_CONFIRM:
+        case PI_ACK_SHUTDOWN_PRESS_CONFIRM:
         case PI_ACK_SHUTDOWN_PRESS_CANCEL:
         case PI_ACK_IS_CHARGING:
         case PI_ACK_IS_NOT_CHARGING:
