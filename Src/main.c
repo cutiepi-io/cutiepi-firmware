@@ -83,7 +83,7 @@ static void MX_ADC_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
-static void Pow_GPIO_Dir_Set(int dir);
+//static void Pow_GPIO_Dir_Set(int dir);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -268,7 +268,7 @@ void time_1000ms_proc(void)
 	ADC_Check_And_Send(current_pow_sts);
 }
 
-static void Pow_GPIO_Dir_Set(int dir)
+void Pow_GPIO_Dir_Set(int dir)
 {
    LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 
@@ -290,6 +290,12 @@ static void Pow_GPIO_Dir_Set(int dir)
     GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+
+    GPIO_InitStruct.Pin = MCU_REV1_Pin;
+    GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
+    LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
+
   }
   else /*output*/
   {
@@ -300,21 +306,12 @@ static void Pow_GPIO_Dir_Set(int dir)
     GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
     LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
 
-    /**/
-    GPIO_InitStruct.Pin = CHARGE_EN_Pin;
+    GPIO_InitStruct.Pin = MCU_REV1_Pin;
     GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
     GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
     GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
-
-    /**/
-    GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
-    GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-    GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-    GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-    LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+    GPIO_InitStruct.Pull = LL_GPIO_PULL_DOWN;
+    LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
   }
   
 }
@@ -570,7 +567,7 @@ static void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
   /**/
-  //LL_GPIO_ResetOutputPin(MCU_REV1_GPIO_Port, MCU_REV1_Pin);
+  LL_GPIO_ResetOutputPin(MCU_REV1_GPIO_Port, MCU_REV1_Pin);
 
   /**/
   //LL_GPIO_ResetOutputPin(MCU_REV2_GPIO_Port, MCU_REV2_Pin);
@@ -582,18 +579,18 @@ static void MX_GPIO_Init(void)
   LL_GPIO_ResetOutputPin(BOOST_EN_GPIO_Port, BOOST_EN_Pin);
 
   /**/
-  LL_GPIO_ResetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
+  LL_GPIO_SetOutputPin(CHARGE_EN_GPIO_Port, CHARGE_EN_Pin);
 
   /**/
-  LL_GPIO_ResetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
+  LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
 
   /**/
-  // GPIO_InitStruct.Pin = MCU_REV1_Pin;
-  // GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  // GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
-  // GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  // GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
-  // LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Pin = MCU_REV1_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_DOWN;
+  LL_GPIO_Init(MCU_REV1_GPIO_Port, &GPIO_InitStruct);
 
   /**/
   // GPIO_InitStruct.Pin = MCU_REV2_Pin;
@@ -625,7 +622,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(BOOST_EN_GPIO_Port, &GPIO_InitStruct);
 
-  /**/
+  GPIO_InitStruct.Pin = CHARGE_EN_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
+  LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
+  LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+
+/*
   GPIO_InitStruct.Pin = CHARGE_EN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
   GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
@@ -633,13 +640,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(CHARGE_EN_GPIO_Port, &GPIO_InitStruct);
 
-  /**/
   GPIO_InitStruct.Pin = IN2SYS_EN_Pin;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
   GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_HIGH;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
   GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
   LL_GPIO_Init(IN2SYS_EN_GPIO_Port, &GPIO_InitStruct);
+*/
 
 }
 
