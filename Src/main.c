@@ -190,8 +190,9 @@ void scan_key(void)
 				  /**/
 				  //LL_GPIO_SetOutputPin(IN2SYS_EN_GPIO_Port, IN2SYS_EN_Pin);
           
-          Pow_GPIO_Dir_Set(0);
+				  Pow_GPIO_Dir_Set(0);
 				  Set_CurrentPowState(ON);
+				  HAL_UART_Receive_IT(&huart1, Uart_RxData, MIN_IPC_MSG_LEN + KEY_MSG_PAYLOAD_LEN);
 			  }
 			  else
 			  { 

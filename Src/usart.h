@@ -29,10 +29,11 @@
 #define MCU_VERSION_GET    0xF6
 #define POWEROFF_CMD       0xF7
 
-enum {
-	OFF = 0,
-	WAITING_OFF,
-	READY_OFF,
-	ON
-}POWER_STATE;
+
+/*system power status*/
+#define OFF 0
+#define WAITING_OFF 1
+#define READY_OFF 2
+#define ON  3
+
 #endif /* USART_H_ */
