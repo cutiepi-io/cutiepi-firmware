@@ -63,7 +63,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		case SHORT_PRESS_ACK:
 		case IS_CHARGING_ACK:
 		case IS_NOT_CHARGING_ACK:
-			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
 		case SHUTDOWN_PRESS_CONFIRM_ACK:
@@ -71,12 +70,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			{
 				Set_CurrentPowState(READY_OFF);
 			}
-			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
 		case SHUTDOWN_PRESS_CANCEL_ACK:
 			Set_CurrentPowState(ON);
-			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
 		case MCU_VERSION_GET:
@@ -88,15 +85,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			{
 				uart_transmit(1, (uint8_t *)def_version, strlen(def_version));
 			}
-			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
 		case POWEROFF_CMD:
 			Set_CurrentPowState(READY_OFF);
-			HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 		break;
 
 		default:
 			break;
 	}
+	HAL_UART_Receive_IT(huart, huart->pRxBuffPtr, MIN_IPC_MSG_LEN + 1);
 }
